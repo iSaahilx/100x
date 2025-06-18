@@ -1,0 +1,41 @@
+# render.yaml
+# Defines the services for deploying the voice bot on Render.
+# 1. A backend web service running the Flask app.
+# 2. A static site for the frontend, served from the 'frontend' directory.
+
+services:
+  # Backend (Flask API)
+  - type: web
+    name: voice-bot-backend
+    runtime: python
+    # All commands are run from the project root.
+    # We need to specify the subdirectory for our backend.
+    rootDir: backend
+    # Install dependencies.
+    buildCommand: "pip install -r requirements.txt"
+    # Start the Flask server.
+    startCommand: "gunicorn server:app"
+    # The backend service will be on a private URL,
+    # and the frontend will proxy requests to it.
+    # This is handled by the rewrite rule in the static site definition.
+    envVars:
+      - key: OPENAI_API_KEY # Make sure to set this in the Render dashboard
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.4 # Specify a Python version
+
+  # Frontend (Static Site)
+  - type: static
+    name: voice-bot-frontend
+    # All commands are run from the project root.
+    # We need to specify the subdirectory for our frontend.
+    rootDir: frontend
+    # This section sets up a proxy. Any request to '/chat' on the frontend URL
+    # will be forwarded to the backend service.
+    # This is how the frontend can talk to the backend.
+    routes:
+      - type: rewrite
+        source: /chat
+        destination: https://voice-bot-backend.onrender.com/chat
+    # Note: Render automatically handles the build process for static sites,
+    # so no buildCommand is needed. 
