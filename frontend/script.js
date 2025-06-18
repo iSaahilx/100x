@@ -1,5 +1,6 @@
 const chatDiv = document.getElementById("chat");
 const micBtn  = document.getElementById("micBtn");
+const orbContainer = document.querySelector(".orb-container");
 
 // Check browser support
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -13,7 +14,8 @@ recog.interimResults = false;
 
 micBtn.onclick = () => {
   micBtn.disabled = true;
-  micBtn.textContent = "🎙️ Listening…";
+  orbContainer.classList.add("listening");
+  micBtn.textContent = "...";
   recog.start();
 };
 
@@ -21,10 +23,12 @@ recog.onresult = async (event) => {
   const transcript = event.results[0][0].transcript;
   append("user", transcript);
 
-  micBtn.textContent = "⏳ Waiting…";
+  // Stop the 'listening' pulse and show a 'thinking' state
+  orbContainer.classList.remove("listening");
+  micBtn.textContent = "⏳";
 
   try {
-    const response = await fetch("https://voice-bot-backend.onrender.com/chat", {
+    const response = await fetch("http://localhost:8080/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: transcript }),
@@ -39,15 +43,17 @@ recog.onresult = async (event) => {
   } catch (err) {
     console.error(err);
     append("assist", "Sorry, something went wrong. Please try again.");
+  } finally {
+    // IMPORTANT: Reset the UI only after everything is done.
+    micBtn.disabled = false;
+    micBtn.textContent = "🎙️";
   }
-
-  micBtn.textContent = "🎙️ Speak";
-  micBtn.disabled = false;
 };
 
 recog.onerror = (e) => {
   console.error(e);
-  micBtn.textContent = "🎙️ Speak";
+  orbContainer.classList.remove("listening");
+  micBtn.textContent = "🎙️";
   micBtn.disabled = false;
 };
 
@@ -55,8 +61,9 @@ function append(role, text) {
   const p = document.createElement("p");
   p.className = role === "user" ? "user" : "assist";
   p.textContent = text;
+  const chatContainer = document.getElementById("chat-container");
   chatDiv.appendChild(p);
-  chatDiv.scrollTop = chatDiv.scrollHeight;
+  chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 function speak(text) {
