@@ -24,7 +24,7 @@ recog.onresult = async (event) => {
   micBtn.textContent = "⏳ Waiting…";
 
   try {
-    const response = await fetch("http://localhost:8080/chat", {
+    const response = await fetch("https://voice-bot-backend.onrender.com/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: transcript }),
