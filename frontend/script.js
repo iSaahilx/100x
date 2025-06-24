@@ -1,6 +1,7 @@
 const chatDiv = document.getElementById("chat");
 const micBtn  = document.getElementById("micBtn");
 const orbContainer = document.querySelector(".orb-container");
+let audio; // Will hold the single Audio element
 
 // Check browser support
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -13,6 +14,10 @@ recog.lang = "en-US";
 recog.interimResults = false;
 
 micBtn.onclick = () => {
+  if (!audio) {
+    // Create the Audio object on the first user tap to satisfy mobile browser restrictions.
+    audio = new Audio();
+  }
   micBtn.disabled = true;
   orbContainer.classList.add("listening");
   micBtn.textContent = "...";
@@ -28,7 +33,7 @@ recog.onresult = async (event) => {
   micBtn.textContent = "⏳";
 
   try {
-    const response = await fetch("http://localhost:8080/chat", {
+    const response = await fetch("https://one00x-blxn.onrender.com/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: transcript }),
@@ -68,7 +73,7 @@ function append(role, text) {
 
 async function speak(text) {
   try {
-    const res = await fetch("http://localhost:8080/speech", {
+    const res = await fetch("https://one00x-blxn.onrender.com/speech", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -79,8 +84,21 @@ async function speak(text) {
     const arrayBuffer = await res.arrayBuffer();
     const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audio.play();
+    
+    // Re-use the audio element created on the initial click.
+    audio.src = url;
+    const playPromise = audio.play();
+
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error("Audio playback failed:", error);
+        // If playback fails, fall back to the browser's own speech synthesis.
+        if ("speechSynthesis" in window) {
+          const utter = new SpeechSynthesisUtterance("I'm sorry, I couldn't play that audio. Please check your browser's autoplay settings.");
+          speechSynthesis.speak(utter);
+        }
+      });
+    }
   } catch (err) {
     console.error("TTS error, falling back to SpeechSynthesis", err);
     if ("speechSynthesis" in window) {
